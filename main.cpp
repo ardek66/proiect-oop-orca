@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <thread>
+#include <tuple>
 
 #include <SFML/Graphics.hpp>
 
@@ -14,7 +15,7 @@
 #include "env_fixes.h"                                              //
 //////////////////////////////////////////////////////////////////////
 
-
+#define TILE_SIZE 24.0f
 //////////////////////////////////////////////////////////////////////
 /// This class is used to test that the memory leak checks work as expected even when using a GUI
 class SomeClass {
@@ -27,56 +28,75 @@ SomeClass *getC() {
 }
 //////////////////////////////////////////////////////////////////////
 
+class Rectangle {
+private:
+    int _x, _y, _w, _h;
+public:
+    void move(int offX, int offY) {
+        _x += offX;
+        _y += offY;
+    }
 
+    std::tuple<int, int> lowerBounds() const {
+        return { std::min(_x, _x + _w) * TILE_SIZE, std::min(_y, _y + _h) * TILE_SIZE };
+    }
+    std::tuple<int, int> upperBounds() const {
+        return { std::max(_x, _x + _w) * TILE_SIZE, std::max(_y, _y + _h) * TILE_SIZE };
+    }
+    Rectangle(int x, int y, int w, int h) : _x(x), _y(y), _w(w), _h(h) {};
+    Rectangle(const Rectangle &r) : _x(r._x), _y(r._y), _w(r._w), _h(r._h) {};
+    Rectangle& operator=(const Rectangle& r) {
+        _x = r._x;
+        _y = r._y;
+        _w = r._w;
+        _h = r._h;
+        return *this;
+    }
+    ~Rectangle() {
+        std::cout << "Destroying Rectangle@" << this << std::endl;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const Rectangle& rt);
+};
+
+std::ostream &operator<<(std::ostream &os, const Rectangle &rt) {
+    os << "Rectangle(" << rt._x << ", " << rt._y << ", " << rt._w << ", " << rt._h << ")";
+    return os;
+}
+
+class Cursor : public sf::Drawable {
+private:
+    sf::Text _curs_text;
+    sf::RectangleShape _sel_shape;
+    Rectangle _rt;
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        target.draw(_sel_shape);
+        target.draw(_curs_text);
+    }
+
+public:
+    void update(int offX, int offY) {
+        _rt.move(offX, offY);
+        this->_curs_text.move(offX * TILE_SIZE, offY * TILE_SIZE);
+    }
+    Cursor(const sf::Font& font, int x, int y) : _rt(x, y, 1, 1) {
+        this->_curs_text.setCharacterSize(TILE_SIZE);
+        this->_curs_text.setString("@");
+        this->_curs_text.setFont(font);
+        this->_curs_text.setPosition(x * TILE_SIZE, y * TILE_SIZE);
+    }
+};
+
+class Orca {
+
+};
 int main() {
     ////////////////////////////////////////////////////////////////////////
     /// NOTE: this function call is needed for environment-specific fixes //
     init_threads();                                                       //
     ////////////////////////////////////////////////////////////////////////
     ///
-    std::cout << "Hello, world!\n";
-    std::array<int, 100> v{};
-    int nr;
-    std::cout << "Introduceți nr: ";
-    /////////////////////////////////////////////////////////////////////////
-    /// Observație: dacă aveți nevoie să citiți date de intrare de la tastatură,
-    /// dați exemple de date de intrare folosind fișierul tastatura.txt
-    /// Trebuie să aveți în fișierul tastatura.txt suficiente date de intrare
-    /// (în formatul impus de voi) astfel încât execuția programului să se încheie.
-    /// De asemenea, trebuie să adăugați în acest fișier date de intrare
-    /// pentru cât mai multe ramuri de execuție.
-    /// Dorim să facem acest lucru pentru a automatiza testarea codului, fără să
-    /// mai pierdem timp de fiecare dată să introducem de la zero aceleași date de intrare.
-    ///
-    /// Pe GitHub Actions (bife), fișierul tastatura.txt este folosit
-    /// pentru a simula date introduse de la tastatură.
-    /// Bifele verifică dacă programul are erori de compilare, erori de memorie și memory leaks.
-    ///
-    /// Dacă nu puneți în tastatura.txt suficiente date de intrare, îmi rezerv dreptul să vă
-    /// testez codul cu ce date de intrare am chef și să nu pun notă dacă găsesc vreun bug.
-    /// Impun această cerință ca să învățați să faceți un demo și să arătați părțile din
-    /// program care merg (și să le evitați pe cele care nu merg).
-    ///
-    /////////////////////////////////////////////////////////////////////////
-    std::cin >> nr;
-    /////////////////////////////////////////////////////////////////////////
-    for(int i = 0; i < nr; ++i) {
-        std::cout << "v[" << i << "] = ";
-        std::cin >> v[i];
-    }
-    std::cout << "\n\n";
-    std::cout << "Am citit de la tastatură " << nr << " elemente:\n";
-    for(int i = 0; i < nr; ++i) {
-        std::cout << "- " << v[i] << "\n";
-    }
-    ///////////////////////////////////////////////////////////////////////////
-    /// Pentru date citite din fișier, NU folosiți tastatura.txt. Creați-vă voi
-    /// alt fișier propriu cu ce alt nume doriți.
-    /// Exemplu:
-    /// std::ifstream fis("date.txt");
-    /// for(int i = 0; i < nr2; ++i)
-    ///     fis >> v2[i];
-    ///
+
     ///////////////////////////////////////////////////////////////////////////
     ///                Exemplu de utilizare cod generat                     ///
     ///////////////////////////////////////////////////////////////////////////
@@ -87,6 +107,20 @@ int main() {
     SomeClass *c = getC();
     std::cout << c << "\n";
     delete c;
+
+    Rectangle rt1 = Rectangle(20, 20, -1, 20);
+    Rectangle rt2(rt1);
+
+    std::cout << rt1 << std::endl;
+    std::cout << rt2 << std::endl;
+
+    sf::Font font;
+    if (!font.loadFromFile("TerminusTTF.ttf")) {
+        std::cerr << "Could not load font!" << std::endl;
+        return 1;
+    }
+
+    Cursor cursor = Cursor(font, 8, 8);
 
     sf::RenderWindow window;
     ///////////////////////////////////////////////////////////////////////////
@@ -104,6 +138,9 @@ int main() {
     while(window.isOpen()) {
         bool shouldExit = false;
         sf::Event e{};
+
+        int offX = 0, offY = 0;
+
         while(window.pollEvent(e)) {
             switch(e.type) {
             case sf::Event::Closed:
@@ -115,6 +152,10 @@ int main() {
                 break;
             case sf::Event::KeyPressed:
                 std::cout << "Received key " << (e.key.code == sf::Keyboard::X ? "X" : "(other)") << "\n";
+                if(e.key.code == sf::Keyboard::Up) offY = -1;
+                if(e.key.code == sf::Keyboard::Down) offY = 1;
+                if(e.key.code == sf::Keyboard::Left) offX = -1;
+                if(e.key.code == sf::Keyboard::Right) offX = 1;
                 if(e.key.code == sf::Keyboard::Escape)
                     shouldExit = true;
                 break;
@@ -127,9 +168,11 @@ int main() {
             break;
         }
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(300ms);
+        std::this_thread::sleep_for(66ms);
 
+        cursor.update(offX, offY);
         window.clear();
+        window.draw(cursor);
         window.display();
     }
     return 0;
