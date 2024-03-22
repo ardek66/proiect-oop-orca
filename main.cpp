@@ -37,6 +37,13 @@ public:
         _y += offY;
     }
 
+    void resize(int offW, int offH) {
+        _w += offW;
+        if(_w == 0) _w += offW;
+        _h += offH;
+        if(_h == 0) _h += offH;
+    }
+
     std::tuple<int, int> lowerBounds() const {
         return { std::min(_x, _x + _w) * TILE_SIZE, std::min(_y, _y + _h) * TILE_SIZE };
     }
@@ -75,12 +82,22 @@ private:
     }
 
 public:
-    void update(int offX, int offY) {
+    void update(int offX, int offY, int offW, int offH) {
         _rt.move(offX, offY);
+        _rt.resize(offW, offH);
+
         this->_curs_text.move(offX * TILE_SIZE, offY * TILE_SIZE);
+
+        int x1, y1, x2, y2;
+        std::tie(x1, y1) = _rt.lowerBounds();
+        std::tie(x2, y2) = _rt.upperBounds();
+
+        this->_sel_shape.setPosition(x1, y1);
+        this->_sel_shape.setSize(sf::Vector2f(x2, y2) - sf::Vector2f(x1, y1));
     }
     Cursor(const sf::Font& font, int x, int y) : _rt(x, y, 1, 1) {
         this->_curs_text.setCharacterSize(TILE_SIZE);
+        this->_curs_text.setFillColor(sf::Color(0, 255, 0));
         this->_curs_text.setString("@");
         this->_curs_text.setFont(font);
         this->_curs_text.setPosition(x * TILE_SIZE, y * TILE_SIZE);
@@ -139,7 +156,7 @@ int main() {
         bool shouldExit = false;
         sf::Event e{};
 
-        int offX = 0, offY = 0;
+        int offX = 0, offY = 0, offW = 0, offH = 0;
 
         while(window.pollEvent(e)) {
             switch(e.type) {
@@ -156,6 +173,10 @@ int main() {
                 if(e.key.code == sf::Keyboard::Down) offY = 1;
                 if(e.key.code == sf::Keyboard::Left) offX = -1;
                 if(e.key.code == sf::Keyboard::Right) offX = 1;
+                if(e.key.code == sf::Keyboard::W) offH = -1;
+                if(e.key.code == sf::Keyboard::S) offH = 1;
+                if(e.key.code == sf::Keyboard::A) offW = -1;
+                if(e.key.code == sf::Keyboard::D) offW = 1;
                 if(e.key.code == sf::Keyboard::Escape)
                     shouldExit = true;
                 break;
@@ -170,7 +191,7 @@ int main() {
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(66ms);
 
-        cursor.update(offX, offY);
+        cursor.update(offX, offY, offW, offH);
         window.clear();
         window.draw(cursor);
         window.display();
