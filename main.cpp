@@ -97,6 +97,8 @@ private:
     Rectangle _rt;
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        (void)states;
+
         target.draw(_sel_shape);
         target.draw(_curs_text);
     }
