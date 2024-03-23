@@ -16,7 +16,7 @@
 #include "env_fixes.h"                                              //
 //////////////////////////////////////////////////////////////////////
 
-#define TILE_SIZE 24u
+#define TILE_SIZE 24.0f
 //////////////////////////////////////////////////////////////////////
 /// This class is used to test that the memory leak checks work as expected even when using a GUI
 class SomeClass {
