@@ -80,9 +80,9 @@ namespace orca {
 
     class ResourcesStore {
     private:
-        sf::Font _font;
+        static sf::Font _font;
     public:
-        bool loadResources() {
+        static bool loadResources() {
             if (!_font.loadFromFile("TerminusTTF.ttf")) {
                 std::cerr << "Could not load font!" << std::endl;
                 return false;
@@ -91,14 +91,15 @@ namespace orca {
             return true;
         }
 
-        sf::Font &getFont() {
+        static sf::Font& getFont() {
             return _font;
         }
     };
 
+    sf::Font ResourcesStore::_font;
+
     class Cursor : public sf::Drawable {
     private:
-        ResourcesStore _rs;
         sf::Text _curs_text;
         sf::RectangleShape _sel_shape;
         Rectangle _rt;
@@ -125,11 +126,11 @@ namespace orca {
             this->_sel_shape.setSize(sf::Vector2f(x2, y2) - sf::Vector2f(x1, y1));
         }
 
-        Cursor(ResourcesStore rs, int x, int y) : _rs(std::move(rs)), _rt(x, y, 1, 1) {
+        Cursor(int x, int y) : _rt(x, y, 1, 1) {
             this->_curs_text.setCharacterSize(TILE_SIZE);
             this->_curs_text.setFillColor(sf::Color(0, 255, 0));
             this->_curs_text.setString("@");
-            this->_curs_text.setFont(_rs.getFont());
+            this->_curs_text.setFont(ResourcesStore::getFont());
             this->_curs_text.setPosition(x * TILE_SIZE, y * TILE_SIZE);
         }
 
@@ -145,14 +146,17 @@ namespace orca {
     private:
         ResourcesStore _rs;
         Cursor _curs;
+        sf::Text _hud_text;
         sf::RenderWindow _window;
         int _w, _h;
     public:
         friend std::ostream &operator<<(std::ostream &os, const Orca &orca);
 
-        Orca(ResourcesStore rs, int w, int h) : _rs(std::move(rs)), _curs(Cursor(_rs, 8, 8)), _w(w), _h(h) {
+        Orca(int w, int h) : _curs(Cursor(8, 8)), _w(w), _h(h) {
             _window.create(sf::VideoMode({700, 800}), "My Window", sf::Style::Default);
             _window.setVerticalSyncEnabled(true);
+            _hud_text.setFont(ResourcesStore::getFont());
+            _hud_text.setString("hello world");
         }
 
         void mainLoop() {
@@ -200,6 +204,7 @@ namespace orca {
                 _curs.update(offX, offY, offW, offH);
                 _window.clear();
                 _window.draw(_curs);
+                _window.draw(_hud_text);
                 _window.display();
             }
         }
@@ -235,12 +240,11 @@ int main() {
     std::cout << rt1 << std::endl;
     std::cout << rt2 << std::endl;
 
-    orca::ResourcesStore rs = orca::ResourcesStore();
-    if(!rs.loadResources()){
+    if(!orca::ResourcesStore::loadResources()){
         return 1;
     }
 
-    orca::Orca orca = orca::Orca(rs, 80, 80);
+    orca::Orca orca = orca::Orca(80, 80);
     orca.mainLoop();
 
     return 0;
