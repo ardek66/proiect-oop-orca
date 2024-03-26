@@ -144,7 +144,6 @@ namespace orca {
 
     class Orca {
     private:
-        ResourcesStore _rs;
         Cursor _curs;
         sf::Text _hud_text;
         sf::RenderWindow _window;
